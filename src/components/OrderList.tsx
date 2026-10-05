@@ -18,9 +18,87 @@ import {
   Plus,
   Check,
   Edit,
-  Cookie,
-  CupSoda,
 } from 'lucide-react';
+
+// Ícono estilizado de Tarrina / Envase de Colada Morada
+const TarrinaIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Tapa de la tarrina */}
+    <path d="M3 7h18" />
+    <path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+    {/* Vaso / cuerpo cónico de la tarrina */}
+    <path d="M5.5 7l1.5 12.5a2 2 0 0 0 2 1.5h6a2 2 0 0 0 2-1.5L18.5 7" />
+    {/* Línea de contenido de colada */}
+    <path d="M7.5 12.5h9" strokeDasharray="1.5 1.5" />
+  </svg>
+);
+
+// Ícono estilizado de Guagua / Figurita de Pan
+const PanIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Silueta de la guagua de pan */}
+    <path d="M12 2a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5C8 10.5 7 12 7 14c0 1.5.8 2.8 2 3.5-.8 1-.9 2.5 0 3.8.7.9 2 1.7 3 1.7s2.3-.8 3-1.7c.9-1.3.8-2.8 0-3.8 1.2-.7 2-2 2-3.5 0-2-1-3.5-3-4.5 1.2-.7 2-2 2-3.5a4 4 0 0 0-4-4z" />
+    {/* Ojos */}
+    <circle cx="10" cy="5" r="0.8" fill="currentColor" />
+    <circle cx="14" cy="5" r="0.8" fill="currentColor" />
+    {/* Sonrisa */}
+    <path d="M11 7.5c.6.4 1.4.4 2 0" />
+    {/* Glaseado decorativo tradicional */}
+    <path d="M10 13h4" />
+    <path d="M9.5 17h5" />
+  </svg>
+);
+
+// Formateador visual para litros y tarrinas
+const formatLitersDisplay = (liters: number, halfLiters: number, totalLiters: number) => {
+  if (totalLiters === 0) {
+    return {
+      quantity: '0 L',
+      badge: 'Sin colada',
+      breakdown: null,
+    };
+  }
+
+  let quantityText = '';
+  if (totalLiters === 0.5) {
+    quantityText = '½ Litro';
+  } else if (Number.isInteger(totalLiters)) {
+    quantityText = `${totalLiters} ${totalLiters === 1 ? 'Litro' : 'Litros'}`;
+  } else {
+    const whole = Math.floor(totalLiters);
+    quantityText = `${whole} ½ Litros`;
+  }
+
+  const parts: string[] = [];
+  if (liters > 0) {
+    parts.push(`${liters} ${liters === 1 ? 'tarrina de 1L' : 'tarrinas de 1L'}`);
+  }
+  if (halfLiters > 0) {
+    parts.push(`${halfLiters} ${halfLiters === 1 ? 'tarrina de ½L' : 'tarrinas de ½L'}`);
+  }
+
+  return {
+    quantity: quantityText,
+    badge: `${totalLiters}L total`,
+    breakdown: parts.join(' + '),
+  };
+};
 
 interface OrderListProps {
   orders: Order[];
@@ -270,6 +348,7 @@ export const OrderList: React.FC<OrderListProps> = ({
           {sortedAndFilteredOrders.map((order) => {
             const isDelivered = order.order_status === 'entregado';
             const isPaid = order.payment_status === 'pagado';
+            const litersInfo = formatLitersDisplay(order.liters, order.half_liters, order.total_liters);
 
             return (
               <div
@@ -331,68 +410,124 @@ export const OrderList: React.FC<OrderListProps> = ({
                   </div>
                 </div>
 
-                {/* Detalle de Productos */}
-                <div className="bg-slate-50 rounded-xl p-3 my-2 border border-slate-100 space-y-1 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-slate-600">Colada Morada:</span>
-                    <span className="font-bold text-purple-900">
-                      {order.total_liters} Litros
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                    <span>
-                      {order.liters > 0 ? `${order.liters}L` : ''}
-                      {order.liters > 0 && order.half_liters > 0 ? ' + ' : ''}
-                      {order.half_liters > 0 ? `${order.half_liters} (1/2L)` : ''}
-                    </span>
-                    <span>
-                      {order.breads} {order.breads === 1 ? 'figurita de pan' : 'figuritas de pan'}
-                    </span>
-                  </div>
-
-                  {order.delivery_type === 'domicilio' && order.delivery_address && (
-                    <div className="mt-2 pt-2 border-t border-slate-200 text-slate-700">
-                      <div className="flex items-start gap-1.5 font-medium">
-                        <MapPin className="w-3.5 h-3.5 text-purple-700 shrink-0 mt-0.5" />
-                        <span>{order.delivery_address}</span>
+                {/* BLOQUES VISUALES DESTACADOS: COLADA (TARRINA) Y PAN */}
+                <div className="grid grid-cols-2 gap-2 my-2.5">
+                  {/* Bloque Colada Morada (Tarrina) */}
+                  <div
+                    className={`p-3 rounded-2xl border transition-all ${
+                      order.total_liters > 0
+                        ? 'bg-purple-50/80 border-purple-200/90 text-purple-950 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-lg bg-purple-200/70 text-purple-900 flex items-center justify-center shrink-0">
+                          <TarrinaIcon className="w-4 h-4 text-purple-900" />
+                        </div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-purple-900">
+                          Colada
+                        </span>
                       </div>
-                      {order.delivery_reference && (
-                        <p className="text-[11px] text-slate-500 pl-5 mt-0.5">
-                          Ref: {order.delivery_reference}
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-200/60 text-purple-900">
+                        {litersInfo.badge}
+                      </span>
+                    </div>
+
+                    <div className="mt-1">
+                      <p className="text-lg font-black text-purple-950 leading-tight">
+                        {litersInfo.quantity}
+                      </p>
+                      {litersInfo.breakdown ? (
+                        <p className="text-[11px] text-purple-800 font-medium truncate mt-0.5">
+                          {litersInfo.breakdown}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 font-medium truncate mt-0.5">
+                          Sin tarrinas
                         </p>
                       )}
                     </div>
-                  )}
+                  </div>
 
-                  {order.notes && (
-                    <p className="text-[11px] text-slate-500 italic pt-1 border-t border-slate-200">
-                      Nota: {order.notes}
-                    </p>
-                  )}
+                  {/* Bloque Figuritas de Pan */}
+                  <div
+                    className={`p-3 rounded-2xl border transition-all ${
+                      order.breads > 0
+                        ? 'bg-amber-50/80 border-amber-200/90 text-amber-950 shadow-2xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-lg bg-amber-200/70 text-amber-900 flex items-center justify-center shrink-0">
+                          <PanIcon className="w-4 h-4 text-amber-900" />
+                        </div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-amber-900">
+                          Pan
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-200/60 text-amber-900">
+                        {order.breads > 0 ? `${order.breads} uds` : '0 uds'}
+                      </span>
+                    </div>
+
+                    <div className="mt-1">
+                      <p className="text-lg font-black text-amber-950 leading-tight">
+                        {order.breads} {order.breads === 1 ? 'Figura' : 'Figuras'}
+                      </p>
+                      <p className="text-[11px] text-amber-800 font-medium truncate mt-0.5">
+                        {order.breads > 0
+                          ? `${order.breads} ${order.breads === 1 ? 'figurita de pan' : 'figuritas de pan'}`
+                          : 'Sin figuritas'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Dirección si es a domicilio */}
+                {order.delivery_type === 'domicilio' && order.delivery_address && (
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 space-y-0.5 my-2">
+                    <div className="flex items-start gap-1.5 font-medium">
+                      <MapPin className="w-3.5 h-3.5 text-purple-700 shrink-0 mt-0.5" />
+                      <span>{order.delivery_address}</span>
+                    </div>
+                    {order.delivery_reference && (
+                      <p className="text-[11px] text-slate-500 pl-5">
+                        Ref: {order.delivery_reference}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {order.notes && (
+                  <p className="text-[11px] text-slate-500 italic px-1 my-1">
+                    Nota: {order.notes}
+                  </p>
+                )}
 
                 {/* BARRA DE EDICIÓN RÁPIDA (+1L, +1 Pan) */}
                 {!isDelivered && (
-                  <div className="flex items-center justify-between py-1.5 px-2 bg-purple-50/50 rounded-xl border border-purple-100 text-xs mb-2.5">
-                    <span className="text-[11px] font-semibold text-purple-900">
+                  <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-xs mb-2.5 mt-2">
+                    <span className="text-[11px] font-semibold text-slate-600">
                       Aumento Rápido:
                     </span>
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => promptQuickAddLiter(order)}
                         title="Añadir 1 Litro"
-                        className="py-1 px-2 bg-white hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                        className="py-1 px-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-bold text-[11px] flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
                       >
-                        <CupSoda className="w-3 h-3 text-purple-700" />
+                        <TarrinaIcon className="w-3.5 h-3.5 text-purple-800" />
                         <span>+1 Litro</span>
                       </button>
 
                       <button
                         onClick={() => promptQuickAddBread(order)}
                         title="Añadir 1 Figurita de Pan"
-                        className="py-1 px-2 bg-white hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                        className="py-1 px-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-amber-900 font-bold text-[11px] flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
                       >
-                        <Cookie className="w-3 h-3 text-purple-700" />
+                        <PanIcon className="w-3.5 h-3.5 text-amber-800" />
                         <span>+1 Pan</span>
                       </button>
                     </div>
@@ -400,7 +535,7 @@ export const OrderList: React.FC<OrderListProps> = ({
                 )}
 
                 {/* Pie: Total, Vendedor y Acciones */}
-                <div className="space-y-2">
+                <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <User className="w-3.5 h-3.5 text-purple-700" />
@@ -411,7 +546,7 @@ export const OrderList: React.FC<OrderListProps> = ({
                     </div>
 
                     <div className="text-right">
-                      <span className="text-lg font-black text-purple-950">
+                      <span className="text-xl font-black text-purple-950">
                         ${order.total_price.toFixed(2)}
                       </span>
                     </div>
@@ -479,7 +614,7 @@ export const OrderList: React.FC<OrderListProps> = ({
         <Plus className="w-7 h-7" />
       </button>
 
-      {/* Modal de Confirmación Moderno (Reemplaza las alertas nativas) */}
+      {/* Modal de Confirmación Moderno */}
       <ConfirmModal
         isOpen={modalConfig.isOpen}
         title={modalConfig.title}

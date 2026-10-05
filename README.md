@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🥣 Sistema de Registro de Pedidos - Colada Morada & Pan
 
-## Getting Started
+Aplicación web diseñada con enfoque **Mobile-First** y diseño minimalista para el registro y logística de pedidos de Colada Morada y Figuritas de Pan.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Probar Localmente
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Servidor local activo:
+👉 **[http://localhost:3000](http://localhost:3000)**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 👤 Acceso y Administración
 
-## Learn More
+- **Usuario Administrador**:
+  - Usuario: `dennis` (o `admin`)
+  - PIN inicial: `1234`
+- **Gestión de Vendedores**:
+  - Dennis tiene la pestaña **"Equipo"** en la barra superior.
+  - Desde allí puedes crear los usuarios y contraseñas/PIN de cada vendedor (ej. María, Carlos, etc.) y eliminarlos cuando finalice la venta.
+- **Login limpio**:
+  - No hay atajos ni sugerencias en pantalla. Cada persona ingresa con sus credenciales asignadas.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📦 Reglas de Negocio
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Precios y Productos**:
+   - **Medio Litro (1/2 L)**: `$2.00`
+   - **Un Litro (1 L o más)**: `$3.00`
+   - **Figuritas de Pan**: `$0.50` (50 ctvs)
+2. **Cálculo en Vivo**:
+   - Barra inferior fija que actualiza el total a cobrar y los litros al instante con los botones `+` y `-`.
+3. **Logística**:
+   - Selector entre **"Retiro en Local"** y **"A Domicilio"**.
+   - A partir de **3 litros**, la app avisa que califica para entrega a domicilio.
+   - Si se escoge a domicilio, se despliegan campos de dirección y referencia.
+4. **Vendedor asignado**:
+   - Cada pedido queda registrado con el nombre de quien lo ingresó.
+5. **Dashboard de Resumen**:
+   - Total en dinero ($), total litros a preparar, total panes a encargar y botón para copiar resumen a WhatsApp.

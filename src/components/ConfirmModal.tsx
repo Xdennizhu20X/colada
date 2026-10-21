@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, CheckCircle2, Trash2, Info, Plus } from 'lucide-react';
+import { CheckCircle2, Trash2, Info } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;

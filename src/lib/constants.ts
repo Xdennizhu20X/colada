@@ -17,3 +17,21 @@ export const INITIAL_USERS: UserProfile[] = [
     pin: '1234',
   },
 ];
+
+const SALE_ORDINALS: Record<number, string> = {
+  1: 'Primera Venta',
+  2: 'Segunda Venta',
+  3: 'Tercera Venta',
+  4: 'Cuarta Venta',
+  5: 'Quinta Venta',
+  6: 'Sexta Venta',
+  7: 'Séptima Venta',
+  8: 'Octava Venta',
+  9: 'Novena Venta',
+  10: 'Décima Venta',
+};
+
+export const getSaleName = (num: number): string => {
+  return SALE_ORDINALS[num] || `Venta #${num}`;
+};
+

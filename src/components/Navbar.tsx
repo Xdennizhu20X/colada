@@ -2,15 +2,21 @@
 
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { ClipboardList, BarChart3, LogOut, CupSoda, User, Users } from 'lucide-react';
+import { ClipboardList, BarChart3, LogOut, CupSoda, User, Users, Archive } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'list' | 'metrics' | 'users';
-  setActiveTab: (tab: 'list' | 'metrics' | 'users') => void;
+  activeTab: 'list' | 'metrics' | 'users' | 'archived';
+  setActiveTab: (tab: 'list' | 'metrics' | 'users' | 'archived') => void;
   ordersCount: number;
+  currentSaleName?: string;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, ordersCount }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  ordersCount,
+  currentSaleName,
+}) => {
   const { currentUser, logout } = useAuth();
   const isAdmin = currentUser?.role === 'admin';
 
@@ -23,9 +29,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, ordersC
             <CupSoda className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight text-white leading-none">
-              Colada Morada
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-sm font-bold tracking-tight text-white leading-none">
+                Colada Morada
+              </h1>
+              {currentSaleName && (
+                <span className="text-[10px] font-black uppercase tracking-wider bg-purple-950/60 border border-purple-700/60 text-purple-200 px-1.5 py-0.5 rounded-md">
+                  {currentSaleName}
+                </span>
+              )}
+            </div>
             <p className="text-[11px] text-purple-200 mt-0.5 flex items-center gap-1">
               <User className="w-3 h-3 text-purple-300" />
               <span>{currentUser?.name}</span>
@@ -66,18 +79,33 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, ordersC
             </button>
 
             {isAdmin && (
-              <button
-                onClick={() => setActiveTab('users')}
-                title="Gestión de Usuarios"
-                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  activeTab === 'users'
-                    ? 'bg-purple-800 text-white shadow-sm'
-                    : 'text-purple-300 hover:text-white'
-                }`}
-              >
-                <Users className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Equipo</span>
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveTab('archived')}
+                  title="Historial de Ventas Archivadas"
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === 'archived'
+                      ? 'bg-purple-800 text-white shadow-sm'
+                      : 'text-purple-300 hover:text-white'
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Historial</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('users')}
+                  title="Gestión de Usuarios"
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    activeTab === 'users'
+                      ? 'bg-purple-800 text-white shadow-sm'
+                      : 'text-purple-300 hover:text-white'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Equipo</span>
+                </button>
+              </>
             )}
           </div>
 

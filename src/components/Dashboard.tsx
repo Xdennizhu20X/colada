@@ -1,28 +1,62 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { SalesMetrics } from '@/types';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import {
   DollarSign,
   CupSoda,
   Cookie,
   Bike,
-  Store,
   Users,
   Share2,
   Check,
   PackageCheck,
+  Archive,
 } from 'lucide-react';
 
 interface DashboardProps {
   metrics: SalesMetrics;
+  currentSaleName?: string;
+  isAdmin?: boolean;
+  onCloseSale?: () => void | Promise<void>;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ metrics }) => {
+export const Dashboard: React.FC<DashboardProps> = ({
+  metrics,
+  currentSaleName,
+  isAdmin,
+  onCloseSale,
+}) => {
   const [copied, setCopied] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  const saleLabel = currentSaleName || 'Venta Actual';
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const handleConfirmCloseSale = async () => {
+    if (!onCloseSale || isClosing) return;
+    setIsClosing(true);
+    try {
+      await onCloseSale();
+    } finally {
+      if (isMounted.current) {
+        setIsClosing(false);
+        setShowCloseConfirm(false);
+      }
+    }
+  };
 
   const handleCopySummary = () => {
-    const text = `📊 *RESUMEN DE VENTA - COLADA MORADA*
+    const text = `📊 *RESUMEN DE VENTA - ${saleLabel.toUpperCase()}*
 💰 *Total en Ventas:* $${metrics.totalRevenue.toFixed(2)}
 🥣 *Total Colada:* ${metrics.totalLiters} Litros (${metrics.totalLitersCount} de 1L, ${metrics.totalHalfLitersCount} de 1/2L)
 🥖 *Figuritas de Pan:* ${metrics.totalBreadsCount} panes
@@ -186,6 +220,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics }) => {
           </div>
         )}
       </div>
+
+      {/* Cierre de Venta (Solo para el Administrador) */}
+      {isAdmin && onCloseSale && (
+        <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-4 shadow-sm space-y-2.5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+                <Archive className="w-4 h-4 text-purple-700" />
+                <span>Finalizar y Archivar {saleLabel}</span>
+              </h3>
+              <p className="text-[11px] text-purple-700/90 mt-0.5">
+                Archiva los {metrics.totalOrders}{' '}
+                {metrics.totalOrders === 1 ? 'pedido' : 'pedidos'} de {saleLabel} y reinicia la lista en
+                cero para comenzar la siguiente venta. Quedarán guardados en el Historial.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCloseConfirm(true)}
+            disabled={isClosing}
+            className="w-full py-2.5 px-4 bg-purple-800 hover:bg-purple-900 active:bg-purple-950 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98 flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            <Archive className="w-4 h-4" />
+            <span>
+              {isClosing
+                ? 'Cerrando venta...'
+                : `Cerrar ${saleLabel} e Iniciar Siguiente Venta`}
+            </span>
+          </button>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={showCloseConfirm}
+        title={`¿Cerrar ${saleLabel}?`}
+        description={`Se archivarán los ${metrics.totalOrders} ${
+          metrics.totalOrders === 1 ? 'pedido' : 'pedidos'
+        } por $${metrics.totalRevenue.toFixed(2)} y se iniciará la siguiente venta con la lista en cero. Podrás revisarlos después en la pestaña Historial.`}
+        confirmText="Sí, Cerrar Venta"
+        variant="purple"
+        onConfirm={handleConfirmCloseSale}
+        onCancel={() => setShowCloseConfirm(false)}
+      />
     </div>
   );
 };

@@ -68,7 +68,62 @@ create policy "Permitir eliminacion de pedidos"
   using (true);
 
 
--- 3. HABILITAR TIEMPO REAL (REALTIME)
+-- 3. VENTAS POR LOTES (Primera Venta, Segunda Venta, ...)
+-- Cada lote guarda una venta completa. Al cerrar un lote sus pedidos quedan
+-- archivados y se inicia el siguiente lote con la lista en cero.
+create table if not exists public.sales_batches (
+  id text primary key,
+  sale_number integer not null unique,
+  name text not null,
+  status text default 'activa',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  closed_at timestamp with time zone,
+  total_revenue numeric(10, 2) default 0,
+  total_liters numeric(10, 2) default 0,
+  total_breads integer default 0,
+  total_orders integer default 0
+);
+
+alter table public.sales_batches enable row level security;
+
+drop policy if exists "Permitir acceso completo a lotes de venta" on public.sales_batches;
+
+create policy "Permitir acceso completo a lotes de venta"
+  on public.sales_batches for all
+  using (true)
+  with check (true);
+
+-- Solo puede existir una venta activa a la vez
+create unique index if not exists sales_batches_single_active
+  on public.sales_batches (status)
+  where status = 'activa';
+
+-- Insertar la Primera Venta como activa (si el proyecto ya existe, no se duplica)
+insert into public.sales_batches (id, sale_number, name, status)
+values ('batch-1', 1, 'Primera Venta', 'activa')
+on conflict (sale_number) do nothing;
+
+
+-- 4. VINCULAR CADA PEDIDO A SU VENTA
+alter table public.orders add column if not exists sale_number integer default 1;
+
+create index if not exists orders_sale_number_idx on public.orders (sale_number);
+
+update public.orders set sale_number = 1 where sale_number is null;
+
+
+-- 5. HABILITAR TIEMPO REAL (REALTIME)
 -- Permite que los pedidos nuevos aparezcan al instante en los celulares de todos
-alter publication supabase_realtime add table public.orders;
-alter publication supabase_realtime add table public.app_users;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['public.orders', 'public.app_users', 'public.sales_batches'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname || '.' || tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table %s', t);
+    end if;
+  end loop;
+end $$;

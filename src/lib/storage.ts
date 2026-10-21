@@ -1,9 +1,11 @@
-import { Order, UserProfile, SalesMetrics } from '@/types';
-import { INITIAL_USERS } from './constants';
+import { Order, UserProfile, SalesMetrics, SaleBatch } from '@/types';
+import { INITIAL_USERS, getSaleName } from './constants';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const ORDERS_KEY = 'colada_orders_v3';
 const USERS_KEY = 'colada_users_v3';
+const SALES_BATCHES_KEY = 'colada_sales_batches_v1';
+const CURRENT_SALE_KEY = 'colada_current_sale_num_v1';
 
 // Datos de prueba iniciales si está vacío
 const DEMO_ORDERS: Order[] = [
@@ -30,11 +32,22 @@ export const deduplicateOrders = (orders: Order[]): Order[] => {
   const map = new Map<string, Order>();
   orders.forEach((o) => {
     if (o && o.id) {
-      map.set(o.id, o);
+      map.set(o.id, {
+        ...o,
+        sale_number: o.sale_number || 1,
+      });
     }
   });
   return Array.from(map.values());
 };
+
+// Pedidos que pertenecen a una venta concreta
+export const getOrdersBySale = (orders: Order[], saleNumber: number): Order[] =>
+  orders.filter((o) => (o.sale_number || 1) === saleNumber);
+
+// Pedidos archivados (todas las ventas menos la activa)
+export const getArchivedOrders = (orders: Order[], currentSaleNumber: number): Order[] =>
+  orders.filter((o) => (o.sale_number || 1) !== currentSaleNumber);
 
 // Carga de usuarios (soporta Supabase con fallback a LocalStorage)
 export const getStoredUsers = async (): Promise<UserProfile[]> => {
@@ -134,6 +147,10 @@ export const getOrders = async (): Promise<Order[]> => {
 };
 
 export const saveOrder = async (order: Order): Promise<Order> => {
+  if (!order.sale_number) {
+    order.sale_number = await getCurrentSaleNumber();
+  }
+
   if (isSupabaseConfigured && supabase) {
     try {
       const { data, error } = await supabase
@@ -285,3 +302,232 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
     sellerBreakdown,
   };
 };
+
+// ==========================================
+// GESTIÓN DE LOTES DE VENTAS (VENTA 1, 2, 3...)
+// ==========================================
+
+const buildBatchId = (saleNumber: number) => `batch-${saleNumber}-${Date.now()}`;
+
+const getFallbackBatches = (): SaleBatch[] => [
+  {
+    id: 'batch-1',
+    sale_number: 1,
+    name: getSaleName(1),
+    status: 'activa',
+    created_at: new Date().toISOString(),
+  },
+];
+
+const readLocalBatches = (): SaleBatch[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SALES_BATCHES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const writeLocalBatches = (batches: SaleBatch[]) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SALES_BATCHES_KEY, JSON.stringify(batches));
+};
+
+export const getCurrentSaleNumber = async (): Promise<number> => {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('sales_batches')
+        .select('sale_number')
+        .eq('status', 'activa')
+        .order('sale_number', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        return data[0].sale_number;
+      }
+    } catch (e) {
+      console.error('Error obteniendo venta activa en Supabase:', e);
+    }
+  }
+
+  if (typeof window === 'undefined') return 1;
+  try {
+    const raw = localStorage.getItem(CURRENT_SALE_KEY);
+    if (raw) return parseInt(raw, 10) || 1;
+  } catch {}
+  return 1;
+};
+
+export const getSalesBatches = async (): Promise<SaleBatch[]> => {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('sales_batches')
+        .select('*')
+        .order('sale_number', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        return data as SaleBatch[];
+      }
+
+      if (!error && data && data.length === 0) {
+        const firstBatch: SaleBatch = {
+          id: 'batch-1',
+          sale_number: 1,
+          name: getSaleName(1),
+          status: 'activa',
+          created_at: new Date().toISOString(),
+        };
+        await supabase.from('sales_batches').insert([firstBatch]);
+        return [firstBatch];
+      }
+    } catch (e) {
+      console.error('Error obteniendo lotes de ventas en Supabase:', e);
+    }
+  }
+
+  const defaultInitial: SaleBatch[] = [
+    {
+      id: 'batch-1',
+      sale_number: 1,
+      name: getSaleName(1),
+      status: 'activa',
+      created_at: new Date().toISOString(),
+    },
+  ];
+
+  if (typeof window === 'undefined') {
+    return defaultInitial;
+  }
+
+  const stored = readLocalBatches();
+  if (stored.length === 0) {
+    writeLocalBatches(defaultInitial);
+    localStorage.setItem(CURRENT_SALE_KEY, '1');
+    return defaultInitial;
+  }
+  return stored;
+};
+
+export const closeCurrentSaleBatch = async (
+  currentNum: number,
+  metrics: SalesMetrics
+): Promise<number> => {
+  const nextNum = currentNum + 1;
+  const now = new Date().toISOString();
+  const totals = {
+    total_revenue: metrics.totalRevenue,
+    total_liters: metrics.totalLiters,
+    total_breads: metrics.totalBreadsCount,
+    total_orders: metrics.totalOrders,
+  };
+
+  // Actualizar en Supabase si está disponible
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // 1. Cerrar la venta actual (los pedidos NO se borran: quedan archivados por sale_number)
+      const { error: closeError } = await supabase
+        .from('sales_batches')
+        .update({ status: 'cerrada', closed_at: now, ...totals })
+        .eq('sale_number', currentNum);
+
+      if (closeError) throw closeError;
+
+      // 2. Crear la siguiente venta activa
+      const { data: existing } = await supabase
+        .from('sales_batches')
+        .select('sale_number')
+        .eq('sale_number', nextNum)
+        .limit(1);
+
+      if (existing && existing.length === 0) {
+        const { error: insertError } = await supabase.from('sales_batches').insert([
+          {
+            id: buildBatchId(nextNum),
+            sale_number: nextNum,
+            name: getSaleName(nextNum),
+            status: 'activa',
+            created_at: now,
+          },
+        ]);
+        if (insertError) throw insertError;
+      } else if (existing && existing.length > 0) {
+        await supabase
+          .from('sales_batches')
+          .update({ status: 'activa', closed_at: null })
+          .eq('sale_number', nextNum);
+      }
+    } catch (e) {
+      console.error('Error cerrando venta en Supabase:', e);
+    }
+  }
+
+  // Actualizar en localStorage
+  if (typeof window !== 'undefined') {
+    const stored = readLocalBatches().length > 0 ? readLocalBatches() : getFallbackBatches();
+
+    const updated = stored.map((b) => {
+      if (b.sale_number === currentNum) {
+        return {
+          ...b,
+          status: 'cerrada' as const,
+          closed_at: now,
+          ...totals,
+        };
+      }
+      if (b.sale_number === nextNum) {
+        return { ...b, status: 'activa' as const, closed_at: undefined };
+      }
+      return b;
+    });
+
+    if (!updated.some((b) => b.sale_number === nextNum)) {
+      updated.push({
+        id: buildBatchId(nextNum),
+        sale_number: nextNum,
+        name: getSaleName(nextNum),
+        status: 'activa',
+        created_at: now,
+      });
+    }
+
+    writeLocalBatches(updated);
+    localStorage.setItem(CURRENT_SALE_KEY, nextNum.toString());
+
+    window.dispatchEvent(new Event('colada_orders_updated'));
+    window.dispatchEvent(new Event('colada_sales_updated'));
+  }
+
+  return nextNum;
+};
+
+export const reopenSaleBatch = async (saleNumber: number): Promise<void> => {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase.from('sales_batches').update({ status: 'cerrada' }).neq('sale_number', saleNumber);
+      await supabase
+        .from('sales_batches')
+        .update({ status: 'activa', closed_at: null })
+        .eq('sale_number', saleNumber);
+    } catch (e) {
+      console.error('Error reabriendo venta en Supabase:', e);
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    const stored = readLocalBatches().length > 0 ? readLocalBatches() : getFallbackBatches();
+    const updated = stored.map((b) =>
+      b.sale_number === saleNumber
+        ? { ...b, status: 'activa' as const, closed_at: undefined }
+        : { ...b, status: 'cerrada' as const }
+    );
+    writeLocalBatches(updated);
+    localStorage.setItem(CURRENT_SALE_KEY, saleNumber.toString());
+
+    window.dispatchEvent(new Event('colada_orders_updated'));
+    window.dispatchEvent(new Event('colada_sales_updated'));
+  }
+};
+

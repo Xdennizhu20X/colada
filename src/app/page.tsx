@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { LoginForm } from '@/components/LoginForm';
 import { Navbar } from '@/components/Navbar';
@@ -8,45 +8,89 @@ import { NewOrderForm } from '@/components/NewOrderForm';
 import { OrderList } from '@/components/OrderList';
 import { Dashboard } from '@/components/Dashboard';
 import { UserManagement } from '@/components/UserManagement';
-import { Order, SalesMetrics } from '@/types';
-import { getOrders, calculateMetrics, deduplicateOrders } from '@/lib/storage';
+import { ArchivedSales } from '@/components/ArchivedSales';
+import { Order, SalesMetrics, SaleBatch } from '@/types';
+import {
+  getOrders,
+  calculateMetrics,
+  deduplicateOrders,
+  getSalesBatches,
+  getCurrentSaleNumber,
+  closeCurrentSaleBatch,
+} from '@/lib/storage';
+import { getSaleName } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
+
+type Tab = 'list' | 'metrics' | 'users' | 'archived';
 
 function MainApp() {
   const { currentUser, isLoading } = useAuth();
+  const isAdmin = currentUser?.role === 'admin';
 
   // Vista activa: por defecto siempre la lista de pedidos
-  const [activeTab, setActiveTab] = useState<'list' | 'metrics' | 'users'>('list');
+  const [activeTab, setActiveTab] = useState<Tab>('list');
   const [isAddingOrder, setIsAddingOrder] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [batches, setBatches] = useState<SaleBatch[]>([]);
+  const [currentSaleNumber, setCurrentSaleNumber] = useState(1);
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [isClosingSale, setIsClosingSale] = useState(false);
 
   const refreshOrders = useCallback(async () => {
-    const data = await getOrders();
+    const [data, saleBatches, saleNum] = await Promise.all([
+      getOrders(),
+      getSalesBatches(),
+      getCurrentSaleNumber(),
+    ]);
     setOrders(deduplicateOrders(data));
+    setBatches(saleBatches);
+    setCurrentSaleNumber(saleNum);
     setIsLoadingOrders(false);
   }, []);
 
   useEffect(() => {
-    refreshOrders();
-
     const handleStorageUpdate = () => {
       refreshOrders();
     };
 
     window.addEventListener('colada_orders_updated', handleStorageUpdate);
+    window.addEventListener('colada_sales_updated', handleStorageUpdate);
     window.addEventListener('storage', handleStorageUpdate);
 
+    // La carga inicial se dispara fuera del cuerpo síncrono del efecto
+    const initialLoad = window.requestAnimationFrame(handleStorageUpdate);
+
     return () => {
+      window.cancelAnimationFrame(initialLoad);
       window.removeEventListener('colada_orders_updated', handleStorageUpdate);
+      window.removeEventListener('colada_sales_updated', handleStorageUpdate);
       window.removeEventListener('storage', handleStorageUpdate);
     };
   }, [refreshOrders]);
 
+  // Solo se muestra la venta activa; el resto queda archivado
+  const activeSaleOrders = useMemo(
+    () => orders.filter((o) => (o.sale_number || 1) === currentSaleNumber),
+    [orders, currentSaleNumber]
+  );
+
+  const activeBatch = useMemo(
+    () => batches.find((b) => b.sale_number === currentSaleNumber),
+    [batches, currentSaleNumber]
+  );
+
+  const currentSaleName = activeBatch?.name || getSaleName(currentSaleNumber);
+
+  const metrics: SalesMetrics = useMemo(
+    () => calculateMetrics(activeSaleOrders),
+    [activeSaleOrders]
+  );
+
   // Al crear un nuevo pedido
   const handleOrderCreated = (newOrder: Order) => {
-    setOrders((prev) => deduplicateOrders([newOrder, ...prev]));
+    const withSale: Order = { ...newOrder, sale_number: newOrder.sale_number || currentSaleNumber };
+    setOrders((prev) => deduplicateOrders([withSale, ...prev]));
     setIsAddingOrder(false);
     setEditingOrder(null);
     setActiveTab('list');
@@ -54,7 +98,9 @@ function MainApp() {
 
   // Al editar un pedido existente
   const handleOrderUpdated = (updatedOrder: Order) => {
-    setOrders((prev) => deduplicateOrders(prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o))));
+    setOrders((prev) =>
+      deduplicateOrders(prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)))
+    );
     setIsAddingOrder(false);
     setEditingOrder(null);
     setActiveTab('list');
@@ -66,7 +112,20 @@ function MainApp() {
     setIsAddingOrder(true);
   };
 
-  const metrics: SalesMetrics = calculateMetrics(orders);
+  // Cierre de venta: archiva los pedidos actuales e inicia la siguiente venta en cero
+  const handleCloseSale = async () => {
+    if (isClosingSale) return;
+    setIsClosingSale(true);
+    try {
+      await closeCurrentSaleBatch(currentSaleNumber, metrics);
+      setIsAddingOrder(false);
+      setEditingOrder(null);
+      await refreshOrders();
+      setActiveTab('list');
+    } finally {
+      setIsClosingSale(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -81,17 +140,22 @@ function MainApp() {
     return <LoginForm />;
   }
 
+  // Un vendedor nunca debe poder entrar a la pestaña de usuarios ni al historial
+  const safeTab: Tab =
+    !isAdmin && (activeTab === 'archived' || activeTab === 'users') ? 'list' : activeTab;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-purple-100 selection:text-purple-900">
       {/* Barra de navegación superior */}
       <Navbar
-        activeTab={activeTab}
+        activeTab={safeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
           setIsAddingOrder(false);
           setEditingOrder(null);
         }}
-        ordersCount={orders.length}
+        ordersCount={activeSaleOrders.length}
+        currentSaleName={currentSaleName}
       />
 
       {/* Contenido Principal */}
@@ -115,10 +179,10 @@ function MainApp() {
               />
             ) : (
               <>
-                {/* 1. Lista de Pedidos (Por defecto) */}
-                {activeTab === 'list' && (
+                {/* 1. Lista de Pedidos de la venta activa (Por defecto) */}
+                {safeTab === 'list' && (
                   <OrderList
-                    orders={orders}
+                    orders={activeSaleOrders}
                     onRefresh={refreshOrders}
                     onOpenNewOrder={() => {
                       setEditingOrder(null);
@@ -128,13 +192,29 @@ function MainApp() {
                   />
                 )}
 
-                {/* 2. Resumen y Cuadre de Caja */}
-                {activeTab === 'metrics' && (
-                  <Dashboard metrics={metrics} />
+                {/* 2. Resumen y Cuadre de Caja de la venta activa */}
+                {safeTab === 'metrics' && (
+                  <Dashboard
+                    metrics={metrics}
+                    currentSaleName={currentSaleName}
+                    isAdmin={isAdmin}
+                    onCloseSale={handleCloseSale}
+                  />
                 )}
 
-                {/* 3. Gestión de Usuarios (Exclusivo Administrador) */}
-                {activeTab === 'users' && (
+                {/* 3. Historial de Ventas Archivadas (Exclusivo Administrador) */}
+                {safeTab === 'archived' && isAdmin && (
+                  <ArchivedSales
+                    salesBatches={batches}
+                    allOrders={orders}
+                    currentSaleNumber={currentSaleNumber}
+                    onBack={() => setActiveTab('list')}
+                    onRefresh={refreshOrders}
+                  />
+                )}
+
+                {/* 4. Gestión de Usuarios (Exclusivo Administrador) */}
+                {safeTab === 'users' && isAdmin && (
                   <UserManagement onBack={() => setActiveTab('list')} />
                 )}
               </>

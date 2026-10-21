@@ -13,6 +13,7 @@ export interface UserProfile {
 
 export interface Order {
   id: string;
+  sale_number?: number; // 1 = Primera Venta, 2 = Segunda Venta, etc.
   client_name: string;
   client_phone?: string;
   half_liters: number; // $2.00 c/u
@@ -51,3 +52,17 @@ export interface SalesMetrics {
     breads: number;
   }[];
 }
+
+export interface SaleBatch {
+  id: string;
+  sale_number: number;
+  name: string; // Ej: "Primera Venta", "Segunda Venta"
+  status: 'activa' | 'cerrada';
+  created_at: string;
+  closed_at?: string;
+  total_revenue?: number;
+  total_liters?: number;
+  total_breads?: number;
+  total_orders?: number;
+}
+

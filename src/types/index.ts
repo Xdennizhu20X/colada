@@ -19,6 +19,7 @@ export interface Order {
   half_liters: number; // $2.00 c/u
   liters: number;      // $3.00 c/u
   breads: number;      // $0.50 c/u
+  combos?: number;     // $1.50 c/u (1 vaso de colada + 1 puerca)
   total_liters: number;
   total_price: number;
   delivery_type: DeliveryType;
@@ -39,6 +40,7 @@ export interface SalesMetrics {
   totalHalfLitersCount: number;
   totalLitersCount: number;
   totalBreadsCount: number;
+  totalCombosCount: number;
   totalOrders: number;
   pendingOrders: number;
   deliveredOrders: number;
@@ -50,6 +52,7 @@ export interface SalesMetrics {
     totalAmount: number;
     liters: number;
     breads: number;
+    combos?: number;
   }[];
 }
 

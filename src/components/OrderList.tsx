@@ -65,6 +65,29 @@ const PanIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
   </svg>
 );
 
+// Ícono estilizado de Combo (Vaso de colada + Puerca de pan)
+const ComboIcon = ({ className = 'w-5 h-5' }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    {/* Vaso de colada */}
+    <path d="M4 5h7l-1 9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2L4 5z" />
+    <path d="M3 5h9" />
+    <path d="M5 9.5h5" strokeDasharray="1.5 1.5" />
+    {/* Puerca de pan al lado */}
+    <circle cx="17.5" cy="12.5" r="4.5" />
+    <circle cx="16" cy="11" r="0.7" fill="currentColor" />
+    <circle cx="19" cy="11" r="0.7" fill="currentColor" />
+    <path d="M16 14c.8.6 2.2.6 3 0" />
+  </svg>
+);
+
 // Formateador visual para litros y tarrinas
 const formatLitersDisplay = (liters: number, halfLiters: number, totalLiters: number) => {
   if (totalLiters === 0) {
@@ -255,6 +278,31 @@ export const OrderList: React.FC<OrderListProps> = ({
         const updated: Order = {
           ...order,
           breads: newBreads,
+          total_price: newPrice,
+        };
+        await updateOrder(updated);
+        onRefresh();
+      },
+    });
+  };
+
+  const promptQuickAddCombo = (order: Order) => {
+    const currentCombos = order.combos || 0;
+    const newCombos = currentCombos + 1;
+    const newTotalLiters = Number((order.half_liters * 0.5 + order.liters * 1.0 + newCombos * 0.25).toFixed(2));
+    const newPrice = Number((order.total_price + PRICES.COMBO).toFixed(2));
+
+    setModalConfig({
+      isOpen: true,
+      title: '¿Añadir +1 Combo?',
+      description: `Se agregará 1 Combo (1 vaso colada + 1 puerca) al pedido de ${order.client_name}. Total pasará de $${order.total_price.toFixed(2)} a $${newPrice.toFixed(2)}.`,
+      confirmText: '+1 Combo ($1.50)',
+      variant: 'purple',
+      action: async () => {
+        const updated: Order = {
+          ...order,
+          combos: newCombos,
+          total_liters: newTotalLiters,
           total_price: newPrice,
         };
         await updateOrder(updated);
@@ -485,6 +533,34 @@ export const OrderList: React.FC<OrderListProps> = ({
                   </div>
                 </div>
 
+                {/* Bloque Destacado de Combos (Vaso Colada + 1 Puerca) si aplica */}
+                {(order.combos ?? 0) > 0 && (
+                  <div className="p-3 rounded-2xl border bg-emerald-50/80 border-emerald-200/90 text-emerald-950 shadow-2xs my-2">
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-200/80 text-emerald-900 flex items-center justify-center shrink-0">
+                          <ComboIcon className="w-4 h-4 text-emerald-900" />
+                        </div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-emerald-900">
+                          Combo Especial ($1.50)
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-200/70 text-emerald-900">
+                        {order.combos} {order.combos === 1 ? 'combo' : 'combos'}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 flex items-baseline justify-between">
+                      <p className="text-lg font-black text-emerald-950 leading-tight">
+                        {order.combos} {order.combos === 1 ? 'Combo' : 'Combos'}
+                      </p>
+                      <p className="text-[11px] text-emerald-800 font-medium">
+                        {order.combos} {order.combos === 1 ? 'vaso colada + 1 puerca' : 'vasos colada + puercas'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Dirección si es a domicilio */}
                 {order.delivery_type === 'domicilio' && order.delivery_address && (
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 space-y-0.5 my-2">
@@ -506,29 +582,38 @@ export const OrderList: React.FC<OrderListProps> = ({
                   </p>
                 )}
 
-                {/* BARRA DE EDICIÓN RÁPIDA (+1L, +1 Pan) */}
+                {/* BARRA DE EDICIÓN RÁPIDA (+1L, +1 Pan, +1 Combo) */}
                 {!isDelivered && (
                   <div className="flex items-center justify-between py-1.5 px-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-xs mb-2.5 mt-2">
                     <span className="text-[11px] font-semibold text-slate-600">
-                      Aumento Rápido:
+                      Aumento:
                     </span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <button
                         onClick={() => promptQuickAddLiter(order)}
                         title="Añadir 1 Litro"
-                        className="py-1 px-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-bold text-[11px] flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                        className="py-1 px-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
                       >
                         <TarrinaIcon className="w-3.5 h-3.5 text-purple-800" />
-                        <span>+1 Litro</span>
+                        <span>+1L</span>
                       </button>
 
                       <button
                         onClick={() => promptQuickAddBread(order)}
                         title="Añadir 1 Figurita de Pan"
-                        className="py-1 px-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-amber-900 font-bold text-[11px] flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
+                        className="py-1 px-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg text-amber-900 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
                       >
                         <PanIcon className="w-3.5 h-3.5 text-amber-800" />
                         <span>+1 Pan</span>
+                      </button>
+
+                      <button
+                        onClick={() => promptQuickAddCombo(order)}
+                        title="Añadir 1 Combo (Vaso + Puerca)"
+                        className="py-1 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-emerald-900 font-bold text-[11px] flex items-center gap-1 active:scale-95 transition-all shadow-2xs"
+                      >
+                        <ComboIcon className="w-3.5 h-3.5 text-emerald-800" />
+                        <span>+1 Combo</span>
                       </button>
                     </div>
                   </div>

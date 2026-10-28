@@ -4,6 +4,7 @@ export const PRICES = {
   HALF_LITER: 2.00,  // $2.00 por medio litro
   LITER: 3.00,       // $3.00 por 1 litro
   BREAD: 0.50,       // $0.50 por figurita de pan
+  COMBO: 1.50,       // $1.50 por Combo (1 vaso de colada + 1 puerca)
   MIN_LITERS_FOR_DELIVERY: 3, // A partir de 3 litros se habilita o sugiere entrega a domicilio
 };
 

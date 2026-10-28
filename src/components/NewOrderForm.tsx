@@ -41,6 +41,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
   const [halfLiters, setHalfLiters] = useState<number>(initialOrder?.half_liters ?? 0);
   const [liters, setLiters] = useState<number>(initialOrder?.liters ?? 1);
   const [breads, setBreads] = useState<number>(initialOrder?.breads ?? 2);
+  const [combos, setCombos] = useState<number>(initialOrder?.combos ?? 0);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>(initialOrder?.delivery_type || 'local');
   const [deliveryAddress, setDeliveryAddress] = useState(initialOrder?.delivery_address || '');
   const [deliveryReference, setDeliveryReference] = useState(initialOrder?.delivery_reference || '');
@@ -51,20 +52,21 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Cálculos en vivo
+  // Cálculos en vivo (cada combo incluye 1 vaso de colada ~0.25L)
   const totalLiters = useMemo(() => {
-    return Number((halfLiters * 0.5 + liters * 1.0).toFixed(1));
-  }, [halfLiters, liters]);
+    return Number((halfLiters * 0.5 + liters * 1.0 + combos * 0.25).toFixed(2));
+  }, [halfLiters, liters, combos]);
 
   const totalPrice = useMemo(() => {
     return Number(
       (
         halfLiters * PRICES.HALF_LITER +
         liters * PRICES.LITER +
-        breads * PRICES.BREAD
+        breads * PRICES.BREAD +
+        combos * PRICES.COMBO
       ).toFixed(2)
     );
-  }, [halfLiters, liters, breads]);
+  }, [halfLiters, liters, breads, combos]);
 
   const qualifiesForDelivery = totalLiters >= PRICES.MIN_LITERS_FOR_DELIVERY;
 
@@ -77,8 +79,8 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
       return;
     }
 
-    if (totalLiters === 0 && breads === 0) {
-      setFormError('Agrega al menos colada morada o panes al pedido.');
+    if (totalLiters === 0 && breads === 0 && combos === 0) {
+      setFormError('Agrega al menos colada morada, panes o combos al pedido.');
       return;
     }
 
@@ -98,6 +100,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
           half_liters: halfLiters,
           liters: liters,
           breads: breads,
+          combos: combos,
           total_liters: totalLiters,
           total_price: totalPrice,
           delivery_type: deliveryType,
@@ -124,6 +127,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
           half_liters: halfLiters,
           liters: liters,
           breads: breads,
+          combos: combos,
           total_liters: totalLiters,
           total_price: totalPrice,
           delivery_type: deliveryType,
@@ -230,107 +234,236 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
 
           <div className="space-y-2.5">
             {/* Medio Litro ($2.00) */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <div>
-                <p className="font-semibold text-slate-900 text-sm">Medio Litro (1/2 L)</p>
-                <p className="text-xs text-purple-800 font-bold">
-                  ${PRICES.HALF_LITER.toFixed(2)} c/u
-                </p>
-                {halfLiters > 0 && (
-                  <p className="text-[11px] text-slate-500">
-                    Subtotal: ${(halfLiters * PRICES.HALF_LITER).toFixed(2)}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm">Medio Litro (1/2 L)</p>
+                  <p className="text-xs text-purple-800 font-bold">
+                    ${PRICES.HALF_LITER.toFixed(2)} c/u
                   </p>
-                )}
-              </div>
+                  {halfLiters > 0 && (
+                    <p className="text-[11px] text-slate-500">
+                      Subtotal: ${(halfLiters * PRICES.HALF_LITER).toFixed(2)}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setHalfLiters((prev) => Math.max(0, prev - 1))}
-                  className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-6 text-center font-bold text-base text-slate-900">
-                  {halfLiters}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setHalfLiters((prev) => prev + 1)}
-                  className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setHalfLiters((prev) => Math.max(0, prev - 1))}
+                    className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={halfLiters === 0 ? '' : halfLiters}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '');
+                      setHalfLiters(v === '' ? 0 : parseInt(v, 10));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-14 h-9 text-center font-bold text-base text-slate-900 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700/20 focus:border-purple-700 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setHalfLiters((prev) => prev + 1)}
+                    className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Un Litro ($3.00) */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <div>
-                <p className="font-semibold text-slate-900 text-sm">Un Litro (1 L o más)</p>
-                <p className="text-xs text-purple-800 font-bold">
-                  ${PRICES.LITER.toFixed(2)} c/u
-                </p>
-                {liters > 0 && (
-                  <p className="text-[11px] text-slate-500">
-                    Subtotal: ${(liters * PRICES.LITER).toFixed(2)}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm">Un Litro (1 L o más)</p>
+                  <p className="text-xs text-purple-800 font-bold">
+                    ${PRICES.LITER.toFixed(2)} c/u
                   </p>
-                )}
-              </div>
+                  {liters > 0 && (
+                    <p className="text-[11px] text-slate-500">
+                      Subtotal: ${(liters * PRICES.LITER).toFixed(2)}
+                    </p>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setLiters((prev) => Math.max(0, prev - 1))}
-                  className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-6 text-center font-bold text-base text-slate-900">
-                  {liters}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setLiters((prev) => prev + 1)}
-                  className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setLiters((prev) => Math.max(0, prev - 1))}
+                    className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={liters === 0 ? '' : liters}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '');
+                      setLiters(v === '' ? 0 : parseInt(v, 10));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-14 h-9 text-center font-bold text-base text-slate-900 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700/20 focus:border-purple-700 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLiters((prev) => prev + 1)}
+                    className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Figuritas de Pan ($0.50) */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <div>
-                <p className="font-semibold text-slate-900 text-sm">Figuritas de Pan</p>
-                <p className="text-xs text-purple-800 font-bold">
-                  ${PRICES.BREAD.toFixed(2)} c/u (50 ctvs)
-                </p>
-                {breads > 0 && (
-                  <p className="text-[11px] text-slate-500">
-                    Subtotal: ${(breads * PRICES.BREAD).toFixed(2)}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-900 text-sm">Figuritas de Pan</p>
+                  <p className="text-xs text-purple-800 font-bold">
+                    ${PRICES.BREAD.toFixed(2)} c/u (50 ctvs)
                   </p>
-                )}
+                  {breads > 0 && (
+                    <p className="text-[11px] text-slate-500">
+                      Subtotal: ${(breads * PRICES.BREAD).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBreads((prev) => Math.max(0, prev - 1))}
+                    className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={breads === 0 ? '' : breads}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '');
+                      setBreads(v === '' ? 0 : parseInt(v, 10));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-14 h-9 text-center font-bold text-base text-slate-900 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700/20 focus:border-purple-700 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setBreads((prev) => prev + 1)}
+                    className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setBreads((prev) => Math.max(0, prev - 1))}
-                  className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-6 text-center font-bold text-base text-slate-900">
-                  {breads}
+              {/* Botones rápidos para pedidos grandes de panes */}
+              <div className="flex items-center gap-1.5 pt-1 border-t border-slate-200/60">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                  Rápido:
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setBreads((prev) => prev + 1)}
-                  className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+                {[5, 10, 20].map((qty) => (
+                  <button
+                    key={qty}
+                    type="button"
+                    onClick={() => setBreads((prev) => prev + qty)}
+                    className="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-bold text-[11px] active:scale-95 transition-all shadow-2xs"
+                  >
+                    +{qty}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Combo ($1.50): 1 Vaso de Colada + 1 Puerca */}
+            <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-slate-900 text-sm">Combo (Vaso + Puerca)</p>
+                    <span className="text-[10px] font-extrabold uppercase bg-purple-200 text-purple-900 px-1.5 py-0.5 rounded">
+                      $1.50
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-800 font-bold mt-0.5">
+                    ${PRICES.COMBO.toFixed(2)} c/u
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    1 vaso de colada + 1 puerca de pan
+                  </p>
+                  {combos > 0 && (
+                    <p className="text-[11px] text-purple-800 font-semibold mt-0.5">
+                      Subtotal: ${(combos * PRICES.COMBO).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCombos((prev) => Math.max(0, prev - 1))}
+                    className="w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 flex items-center justify-center font-bold"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="999"
+                    inputMode="numeric"
+                    value={combos === 0 ? '' : combos}
+                    placeholder="0"
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '');
+                      setCombos(v === '' ? 0 : parseInt(v, 10));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className="w-14 h-9 text-center font-black text-base text-purple-950 bg-white border-2 border-purple-400 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-700/30 focus:border-purple-700 shadow-2xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCombos((prev) => prev + 1)}
+                    className="w-9 h-9 rounded-xl bg-purple-800 text-white hover:bg-purple-900 active:scale-95 flex items-center justify-center font-bold shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Botones rápidos para pedidos grandes de combos (10, 20, 30) */}
+              <div className="flex items-center gap-1.5 pt-1 border-t border-purple-200/60">
+                <span className="text-[10px] text-purple-800 font-bold uppercase tracking-wider">
+                  Rápido:
+                </span>
+                {[5, 10, 15, 20, 30].map((qty) => (
+                  <button
+                    key={qty}
+                    type="button"
+                    onClick={() => setCombos((prev) => prev + qty)}
+                    className="px-2 py-0.5 bg-white hover:bg-purple-100 border border-purple-300 rounded-lg text-purple-900 font-bold text-[11px] active:scale-95 transition-all shadow-2xs"
+                  >
+                    +{qty}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -523,7 +656,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
                   ${totalPrice.toFixed(2)}
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  ({totalLiters}L • {breads} {breads === 1 ? 'pan' : 'panes'})
+                  ({totalLiters}L • {breads} {breads === 1 ? 'pan' : 'panes'}{combos > 0 ? ` • ${combos} ${combos === 1 ? 'combo' : 'combos'}` : ''})
                 </span>
               </div>
             </div>

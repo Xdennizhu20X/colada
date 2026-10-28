@@ -13,6 +13,8 @@ import {
   Check,
   PackageCheck,
   Archive,
+  Gift,
+  Store,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -56,10 +58,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleCopySummary = () => {
+    const combosLine =
+      metrics.totalCombosCount > 0
+        ? `\n🎁 *Combos:* ${metrics.totalCombosCount} (vaso colada + puerca)`
+        : '';
+
     const text = `📊 *RESUMEN DE VENTA - ${saleLabel.toUpperCase()}*
 💰 *Total en Ventas:* $${metrics.totalRevenue.toFixed(2)}
 🥣 *Total Colada:* ${metrics.totalLiters} Litros (${metrics.totalLitersCount} de 1L, ${metrics.totalHalfLitersCount} de 1/2L)
-🥖 *Figuritas de Pan:* ${metrics.totalBreadsCount} panes
+🥖 *Figuritas de Pan:* ${metrics.totalBreadsCount} panes${combosLine}
 📦 *Total Pedidos:* ${metrics.totalOrders} (${metrics.deliveryOrders} a domicilio, ${metrics.localOrders} en local)
 ✅ *Entregados:* ${metrics.deliveredOrders} | ⏳ *Pendientes:* ${metrics.pendingOrders}`;
 
@@ -130,7 +137,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Figuritas de Pan */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-purple-800 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 mb-2">
             <Cookie className="w-4 h-4" />
           </div>
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
@@ -141,6 +148,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </span>
           <p className="text-[11px] text-slate-400 mt-1">
             Panes por encargar
+          </p>
+        </div>
+
+        {/* Combos Especiales */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-800 mb-2">
+            <Gift className="w-4 h-4" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
+            Combos ($1.50)
+          </span>
+          <span className="text-2xl font-black text-purple-950">
+            {metrics.totalCombosCount || 0}
+          </span>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Vaso + Puerca
           </p>
         </div>
 
@@ -156,7 +179,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {metrics.deliveryOrders}
           </span>
           <p className="text-[11px] text-slate-400 mt-1">
-            vs {metrics.localOrders} en local
+            Pedidos para entrega
+          </p>
+        </div>
+
+        {/* En Local */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700 mb-2">
+            <Store className="w-4 h-4" />
+          </div>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
+            En Local
+          </span>
+          <span className="text-2xl font-black text-purple-950">
+            {metrics.localOrders}
+          </span>
+          <p className="text-[11px] text-slate-400 mt-1">
+            Retiro en el puesto
           </p>
         </div>
       </div>
@@ -205,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <div>
                     <p className="text-xs font-bold text-slate-800">{seller.sellerName}</p>
                     <p className="text-[10px] text-slate-400">
-                      {seller.orderCount} {seller.orderCount === 1 ? 'pedido' : 'pedidos'} • {seller.liters}L colada • {seller.breads} panes
+                      {seller.orderCount} {seller.orderCount === 1 ? 'pedido' : 'pedidos'} • {seller.liters}L colada • {seller.breads} panes{(seller.combos ?? 0) > 0 ? ` • ${seller.combos} combos` : ''}
                     </p>
                   </div>
                 </div>

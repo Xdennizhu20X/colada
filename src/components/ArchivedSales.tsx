@@ -132,12 +132,17 @@ export const ArchivedSales: React.FC<ArchivedSalesProps> = ({
       )
       .join('\n');
 
+    const combosGlobal =
+      globalMetrics.totalCombosCount > 0
+        ? `\n🎁 *Combos Totales:* ${globalMetrics.totalCombosCount} (vaso + puerca)`
+        : '';
+
     const text = `📊 *RECOPILACIÓN GLOBAL DE TODAS LAS VENTAS*
 🥣 *Colada Morada & Figuritas de Pan*
 ━━━━━━━━━━━━━━━━━━━━━━
 💰 *Gran Total:* $${globalMetrics.totalRevenue.toFixed(2)}
 🥣 *Colada Total:* ${globalMetrics.totalLiters} Litros (${globalMetrics.totalLitersCount} de 1L, ${globalMetrics.totalHalfLitersCount} de ½L)
-🥖 *Panes Totales:* ${globalMetrics.totalBreadsCount}
+🥖 *Panes Totales:* ${globalMetrics.totalBreadsCount}${combosGlobal}
 📦 *Pedidos Totales:* ${globalMetrics.totalOrders} (${globalMetrics.deliveryOrders} a domicilio, ${globalMetrics.localOrders} en local)
 ━━━━━━━━━━━━━━
 📚 *VENTAS CERRADAS (${salesBatches.length - 1}):*
@@ -147,7 +152,7 @@ ${closedLines || '• (ninguna todavía)'}
 ${globalMetrics.sellerBreakdown
   .map(
     (s, i) =>
-      `${i + 1}. ${s.sellerName}: $${s.totalAmount.toFixed(2)} (${s.orderCount} pedidos • ${s.liters}L / ${s.breads} panes)`
+      `${i + 1}. ${s.sellerName}: $${s.totalAmount.toFixed(2)} (${s.orderCount} pedidos • ${s.liters}L / ${s.breads} panes${(s.combos ?? 0) > 0 ? ` / ${s.combos} combos` : ''})`
   )
   .join('\n')}`;
 
@@ -158,11 +163,16 @@ ${globalMetrics.sellerBreakdown
 
   // Manejador para copiar resumen de una venta específica
   const handleCopyBatchSummary = (batch: SaleBatch, metrics: SalesMetrics) => {
+    const combosBatch =
+      metrics.totalCombosCount > 0
+        ? `\n🎁 *Combos:* ${metrics.totalCombosCount} (vaso + puerca)`
+        : '';
+
     const text = `📊 *RESUMEN - ${(batch.name || getSaleName(batch.sale_number)).toUpperCase()}*
 ━━━━━━━━━━━━━━━━━━━━━━
 💰 *Total Recaudado:* $${metrics.totalRevenue.toFixed(2)}
 🥣 *Colada:* ${metrics.totalLiters} Litros (${metrics.totalLitersCount} de 1L, ${metrics.totalHalfLitersCount} de ½L)
-🥖 *Panes:* ${metrics.totalBreadsCount} figuritas
+🥖 *Panes:* ${metrics.totalBreadsCount} figuritas${combosBatch}
 📦 *Pedidos:* ${metrics.totalOrders}
 ${
   batch.closed_at
@@ -503,6 +513,7 @@ ${
                           <div className="flex items-center justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-100">
                             <span>
                               🥣 {order.total_liters}L Colada • 🥖 {order.breads} Panes
+                              {(order.combos ?? 0) > 0 ? ` • 🎁 ${order.combos} Combos` : ''}
                             </span>
                             <span className="capitalize font-medium text-slate-500">
                               {order.delivery_type === 'domicilio' ? '🛵 Domicilio' : '🏪 Local'}

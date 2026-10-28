@@ -35,6 +35,7 @@ create table if not exists public.orders (
   half_liters integer default 0,
   liters integer default 0,
   breads integer default 0,
+  combos integer default 0,
   total_liters numeric(5, 2) default 0,
   total_price numeric(10, 2) default 0,
   delivery_type text default 'local',
@@ -104,8 +105,9 @@ values ('batch-1', 1, 'Primera Venta', 'activa')
 on conflict (sale_number) do nothing;
 
 
--- 4. VINCULAR CADA PEDIDO A SU VENTA
+-- 4. VINCULAR CADA PEDIDO A SU VENTA Y ACTUALIZAR COLUMNAS
 alter table public.orders add column if not exists sale_number integer default 1;
+alter table public.orders add column if not exists combos integer default 0;
 
 create index if not exists orders_sale_number_idx on public.orders (sale_number);
 

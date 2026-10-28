@@ -153,11 +153,23 @@ export const saveOrder = async (order: Order): Promise<Order> => {
 
   if (isSupabaseConfigured && supabase) {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('orders')
         .insert([order])
         .select()
         .single();
+
+      // Fallback en caso de que la columna combos aún no se haya creado en Supabase
+      if (error && (error.message?.includes('combos') || error.code === 'PGRST204')) {
+        const { combos: _, ...orderWithoutCombos } = order;
+        const fallbackRes = await supabase
+          .from('orders')
+          .insert([orderWithoutCombos])
+          .select()
+          .single();
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
 
       if (error) {
         console.error('Error guardando en Supabase:', error);
@@ -217,7 +229,11 @@ export const updateOrderStatus = async (
 export const updateOrder = async (updatedOrder: Order): Promise<void> => {
   if (isSupabaseConfigured && supabase) {
     try {
-      await supabase.from('orders').update(updatedOrder).eq('id', updatedOrder.id);
+      const { error } = await supabase.from('orders').update(updatedOrder).eq('id', updatedOrder.id);
+      if (error && (error.message?.includes('combos') || error.code === 'PGRST204')) {
+        const { combos: _, ...orderWithoutCombos } = updatedOrder;
+        await supabase.from('orders').update(orderWithoutCombos).eq('id', updatedOrder.id);
+      }
       return;
     } catch (err) {
       console.error('Error al actualizar pedido en Supabase:', err);
@@ -258,6 +274,7 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
   const totalHalfLitersCount = activeOrders.reduce((sum, o) => sum + (o.half_liters || 0), 0);
   const totalLitersCount = activeOrders.reduce((sum, o) => sum + (o.liters || 0), 0);
   const totalBreadsCount = activeOrders.reduce((sum, o) => sum + (o.breads || 0), 0);
+  const totalCombosCount = activeOrders.reduce((sum, o) => sum + (o.combos || 0), 0);
 
   const pendingOrders = activeOrders.filter((o) => o.order_status !== 'entregado').length;
   const deliveredOrders = activeOrders.filter((o) => o.order_status === 'entregado').length;
@@ -266,7 +283,7 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
 
   const sellerMap: Record<
     string,
-    { sellerName: string; orderCount: number; totalAmount: number; liters: number; breads: number }
+    { sellerName: string; orderCount: number; totalAmount: number; liters: number; breads: number; combos: number }
   > = {};
 
   activeOrders.forEach((o) => {
@@ -278,12 +295,14 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
         totalAmount: 0,
         liters: 0,
         breads: 0,
+        combos: 0,
       };
     }
     sellerMap[seller].orderCount += 1;
     sellerMap[seller].totalAmount += o.total_price || 0;
     sellerMap[seller].liters += o.total_liters || 0;
     sellerMap[seller].breads += o.breads || 0;
+    sellerMap[seller].combos += o.combos || 0;
   });
 
   const sellerBreakdown = Object.values(sellerMap).sort((a, b) => b.totalAmount - a.totalAmount);
@@ -294,6 +313,7 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
     totalHalfLitersCount,
     totalLitersCount,
     totalBreadsCount,
+    totalCombosCount,
     totalOrders: activeOrders.length,
     pendingOrders,
     deliveredOrders,

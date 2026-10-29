@@ -58,6 +58,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   const handleCopySummary = () => {
+    const standaloneBreads = metrics.totalBreadsCount - (metrics.totalCombosCount || 0);
+    const breadBreakdown =
+      metrics.totalCombosCount > 0
+        ? ` (${standaloneBreads} figuras + ${metrics.totalCombosCount} puercas de combo)`
+        : '';
     const combosLine =
       metrics.totalCombosCount > 0
         ? `\n🎁 *Combos:* ${metrics.totalCombosCount} (vaso colada + puerca)`
@@ -66,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const text = `📊 *RESUMEN DE VENTA - ${saleLabel.toUpperCase()}*
 💰 *Total en Ventas:* $${metrics.totalRevenue.toFixed(2)}
 🥣 *Total Colada:* ${metrics.totalLiters} Litros (${metrics.totalLitersCount} de 1L, ${metrics.totalHalfLitersCount} de 1/2L)
-🥖 *Figuritas de Pan:* ${metrics.totalBreadsCount} panes${combosLine}
+🥖 *Total Panes:* ${metrics.totalBreadsCount} panes${breadBreakdown}${combosLine}
 📦 *Total Pedidos:* ${metrics.totalOrders} (${metrics.deliveryOrders} a domicilio, ${metrics.localOrders} en local)
 ✅ *Entregados:* ${metrics.deliveredOrders} | ⏳ *Pendientes:* ${metrics.pendingOrders}`;
 
@@ -141,13 +146,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <Cookie className="w-4 h-4" />
           </div>
           <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block">
-            Figuritas de Pan
+            Total Panes Requeridos
           </span>
           <span className="text-2xl font-black text-purple-950">
             {metrics.totalBreadsCount}
           </span>
           <p className="text-[11px] text-slate-400 mt-1">
-            Panes por encargar
+            {metrics.totalCombosCount > 0
+              ? `${metrics.totalBreadsCount - metrics.totalCombosCount} figuras + ${metrics.totalCombosCount} combos`
+              : 'Panes por encargar'}
           </p>
         </div>
 

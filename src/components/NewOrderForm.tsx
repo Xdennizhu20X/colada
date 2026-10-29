@@ -52,10 +52,10 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Cálculos en vivo (cada combo incluye 1 vaso de colada ~0.25L)
+  // Cálculos en vivo: únicamente colada en tarrinas de litro y medio litro (los combos no se mezclan con los litros)
   const totalLiters = useMemo(() => {
-    return Number((halfLiters * 0.5 + liters * 1.0 + combos * 0.25).toFixed(2));
-  }, [halfLiters, liters, combos]);
+    return Number((halfLiters * 0.5 + liters * 1.0).toFixed(1));
+  }, [halfLiters, liters]);
 
   const totalPrice = useMemo(() => {
     return Number(
@@ -656,7 +656,7 @@ export const NewOrderForm: React.FC<NewOrderFormProps> = ({
                   ${totalPrice.toFixed(2)}
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  ({totalLiters}L • {breads} {breads === 1 ? 'pan' : 'panes'}{combos > 0 ? ` • ${combos} ${combos === 1 ? 'combo' : 'combos'}` : ''})
+                  ({totalLiters > 0 ? `${totalLiters}L • ` : ''}{breads + combos} {breads + combos === 1 ? 'pan' : 'panes'}{combos > 0 ? ` (${breads} fig + ${combos} combo)` : ''})
                 </span>
               </div>
             </div>

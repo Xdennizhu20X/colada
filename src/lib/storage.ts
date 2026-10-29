@@ -273,7 +273,11 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
   const totalLiters = activeOrders.reduce((sum, o) => sum + (o.total_liters || 0), 0);
   const totalHalfLitersCount = activeOrders.reduce((sum, o) => sum + (o.half_liters || 0), 0);
   const totalLitersCount = activeOrders.reduce((sum, o) => sum + (o.liters || 0), 0);
-  const totalBreadsCount = activeOrders.reduce((sum, o) => sum + (o.breads || 0), 0);
+  // Contabiliza el total de panes requeridos (figuras sueltas + 1 puerca por cada combo)
+  const totalBreadsCount = activeOrders.reduce(
+    (sum, o) => sum + (o.breads || 0) + (o.combos || 0),
+    0
+  );
   const totalCombosCount = activeOrders.reduce((sum, o) => sum + (o.combos || 0), 0);
 
   const pendingOrders = activeOrders.filter((o) => o.order_status !== 'entregado').length;
@@ -301,7 +305,7 @@ export const calculateMetrics = (orders: Order[]): SalesMetrics => {
     sellerMap[seller].orderCount += 1;
     sellerMap[seller].totalAmount += o.total_price || 0;
     sellerMap[seller].liters += o.total_liters || 0;
-    sellerMap[seller].breads += o.breads || 0;
+    sellerMap[seller].breads += (o.breads || 0) + (o.combos || 0);
     sellerMap[seller].combos += o.combos || 0;
   });
 

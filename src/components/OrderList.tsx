@@ -289,7 +289,8 @@ export const OrderList: React.FC<OrderListProps> = ({
   const promptQuickAddCombo = (order: Order) => {
     const currentCombos = order.combos || 0;
     const newCombos = currentCombos + 1;
-    const newTotalLiters = Number((order.half_liters * 0.5 + order.liters * 1.0 + newCombos * 0.25).toFixed(2));
+    // Los litros corresponden únicamente a las tarrinas (1L y 1/2L); los combos no suman litros
+    const newTotalLiters = Number((order.half_liters * 0.5 + order.liters * 1.0).toFixed(1));
     const newPrice = Number((order.total_price + PRICES.COMBO).toFixed(2));
 
     setModalConfig({
@@ -498,39 +499,52 @@ export const OrderList: React.FC<OrderListProps> = ({
                     </div>
                   </div>
 
-                  {/* Bloque Figuritas de Pan */}
-                  <div
-                    className={`p-3 rounded-2xl border transition-all ${
-                      order.breads > 0
-                        ? 'bg-amber-50/80 border-amber-200/90 text-amber-950 shadow-2xs'
-                        : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-7 h-7 rounded-lg bg-amber-200/70 text-amber-900 flex items-center justify-center shrink-0">
-                          <PanIcon className="w-4 h-4 text-amber-900" />
-                        </div>
-                        <span className="text-[11px] font-extrabold uppercase tracking-wide text-amber-900">
-                          Pan
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-200/60 text-amber-900">
-                        {order.breads > 0 ? `${order.breads} uds` : '0 uds'}
-                      </span>
-                    </div>
+                  {/* Bloque Panes (Figuritas sueltas + Puercas de Combos) */}
+                  {(() => {
+                    const extraBreads = order.breads || 0;
+                    const comboBreads = order.combos || 0;
+                    const totalOrderBreads = extraBreads + comboBreads;
+                    const hasBreads = totalOrderBreads > 0;
 
-                    <div className="mt-1">
-                      <p className="text-lg font-black text-amber-950 leading-tight">
-                        {order.breads} {order.breads === 1 ? 'Figura' : 'Figuras'}
-                      </p>
-                      <p className="text-[11px] text-amber-800 font-medium truncate mt-0.5">
-                        {order.breads > 0
-                          ? `${order.breads} ${order.breads === 1 ? 'figurita de pan' : 'figuritas de pan'}`
-                          : 'Sin figuritas'}
-                      </p>
-                    </div>
-                  </div>
+                    return (
+                      <div
+                        className={`p-3 rounded-2xl border transition-all ${
+                          hasBreads
+                            ? 'bg-amber-50/80 border-amber-200/90 text-amber-950 shadow-2xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-7 h-7 rounded-lg bg-amber-200/70 text-amber-900 flex items-center justify-center shrink-0">
+                              <PanIcon className="w-4 h-4 text-amber-900" />
+                            </div>
+                            <span className="text-[11px] font-extrabold uppercase tracking-wide text-amber-900">
+                              Pan
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-200/60 text-amber-900">
+                            {hasBreads ? `${totalOrderBreads} panes` : '0 panes'}
+                          </span>
+                        </div>
+
+                        <div className="mt-1">
+                          <p className="text-lg font-black text-amber-950 leading-tight">
+                            {totalOrderBreads} {totalOrderBreads === 1 ? 'Pan' : 'Panes'}
+                          </p>
+                          <p className="text-[11px] text-amber-800 font-medium truncate mt-0.5">
+                            {comboBreads > 0 && extraBreads > 0
+                              ? `${extraBreads} fig. + ${comboBreads} puercas`
+                              : comboBreads > 0
+                              ? `${comboBreads} ${comboBreads === 1 ? 'puerca de combo' : 'puercas de combo'}`
+                              : extraBreads > 0
+                              ? `${extraBreads} ${extraBreads === 1 ? 'figurita de pan' : 'figuritas de pan'}`
+                              : 'Sin panes'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Bloque Destacado de Combos (Vaso Colada + 1 Puerca) si aplica */}
